@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <!--Meta-->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>ToadsMyToads</title>
+
+    <!--Stylesheets-->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css"
+          integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" crossorigin="anonymous">
+    <link rel="stylesheet" href="../assets/css/custom.css">
+
+    <!--Assets-->
+    <link rel="shortcut icon" href="../assets/images/frog.ico"/>
+
+    <!--JS-->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script type="text/javascript" src="https://momentjs.com/downloads/moment.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+    <script type="text/javascript"
+            src="//cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+    <script type="text/javascript" src="../assets/js/rotate_logo.js"></script>
+    <script type="text/javascript" src="../assets/js/include_fragments.js"></script>
+    <script type="text/javascript" src="../assets/js/get_server_time.js"></script>
+    <script type="text/javascript" src="../assets/js/get_credentials_from_cookies.js"></script>
+    <script type="text/javascript" src="../assets/js/activate_tooltips.js"></script>
+
+    <!--Prepare url string for ajax-->
+    <script>
+        url = "http://localhost:8080/lots";
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+
+        if (urlParams.has("page")) {
+            pageNumber = urlParams.get("page");
+            url = url + "?page=" + pageNumber;
+        }
+    </script>
+
+    <!--GET all lots-->
+    <script>
+
+        getAllLots(url);
+
+        function getAllLots(url) {
+            jQuery.ajax({
+                type: "GET",
+                url: url,
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+
+                    let source = $("#lot-template").html();
+                    let template = Handlebars.compile(source);
+                    let html = template(data);
+                    $('#lots').html(html);
+
+                    buildPaginationButtons();
+                    activateTooltips();
+
+                    source = $("#navbar-buttons-template").html();
+                    template = Handlebars.compile(source);
+                    html = template(getCredentialsFromCookies());
+                    $('#navbar-buttons').html(html);
+
+                    const timerElements = document.getElementsByClassName("timer");
+                    const timerWrapperElements = document.getElementsByClassName("timer-wrapper");
+
+                    for (let i = 0; i < timerElements.length; i++) {
+                        insertTimer(timerElements[i], timerWrapperElements[i]);
+                    }
+
+                },
+                error: function (jqXHR) {
+                    console.log(jqXHR);
+                }
+            });
+        }
+    </script>
+
+    <!--GET current user-->
+    <script>
+        function getCurrentUser(username, password) {
+            jQuery.ajax({
+                type: "GET",
+                url: "http://localhost:8080/users/current",
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Authorization", "Basic " + btoa(username + ":" + password));
+                },
+                success: function () {
+                    $('#close-modal-login').click();
+                    document.cookie = "username=" + username;
+                    document.cookie = "password=" + password;
+                    getAllLots(url);
+                },
+                error: function () {
+                    $('#close-modal-login').click();
+                    $('#modal-login-error').modal('toggle');
+                }
+            });
+        }
+    </script>
+
+    <!--Login-->
+    <script>
+        function login() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            getCurrentUser(username, password)
+        }
+    </script>
+
+    <!--Logout-->
+    <script>
+        function logout() {
+            $.removeCookie("username");
+            $.removeCookie("password");
+            getAllLots(url);
+        }
+    </script>
+
+    <!--Build pagination buttons from template-->
+    <script>
+        function buildPaginationButtons() {
+            let pageNumber = 1;
+            let backwardDisabled = false;
+            let forwardDisabled = false;
+
+            if (urlParams.has("page")) {
+                pageNumber = urlParams.get("page");
+            }
+            if (pageNumber <= "1") {
+                backwardDisabled = true;
+            }
+            if (document.getElementsByClassName("timer").length < 4) {
+                forwardDisabled = true;
+            }
+
+            const backwardUrl = "/auction_client/html/index.html?page=" + (pageNumber - 1);
+            const forwardUrl = "/auction_client/html/index.html?page=" + (parseInt(pageNumber) + 1);
+
+            const paginationData = {
+                pageNumber: pageNumber,
+                backwardUrl: backwardUrl,
+                forwardUrl: forwardUrl,
+                backwardDisabled: backwardDisabled,
+                forwardDisabled: forwardDisabled
+            };
+
+            const source = $("#pagination-template").html();
+            const template = Handlebars.compile(source);
+            const html = template(paginationData);
+            $('#pagination').html(html);
+        }
+    </script>
+
+    <!--Lot card template-->
+    <script id="lot-template" type="text/x-handlebars-template">
+        {{#each this}}
+        <div class="col-lg-3 col-md-4 px-2 mb-3 lot">
+            <div class="card" style="height:350px;">
+                <a href="/auction_client/html/lot.html?id={{id}}">
+                    <img class="card-img-top" src="{{image}}"
+                         onerror="if (this.src !== '../assets/images/cover.jpg') this.src = '../assets/images/cover.jpg';"
+                         style="object-fit:cover; height:180px">
+                </a>
+                <div class="card-body pl-3 pr-3 pt-3 pb-0">
+                    <p class="small text-my-dark">{{company.name}}</p>
+                    <a class="text-dark" style="text-decoration:none" href="/auction_client/html/lot.html?id={{id}}">
+                        <h6>{{title}}</h6>
+                    </a>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item pl-3 pr-3">
+                        <p class="float-left text-muted small">Current price</p>
+                        <p class="float-right text-muted small">Time left</p>
+                    </li>
+                    <li class="list-group-item pl-3 pr-3 timer-wrapper">
+                        <p class="float-left font-weight-bold small">{{price}} BYN</p>
+                        <p class="float-right font-weight-bold small timer">{{closes}}</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        {{/each}}
+    </script>
+
+    <!--Pagination buttons template-->
+    <script id="pagination-template" type="text/x-handlebars-template">
+        <ul class="pagination justify-content-center font-weight-medium">
+            <li class="page-item {{#if backwardDisabled}}disabled{{/if}}">
+                <a class="page-link"
+                   href="{{backwardUrl}}"
+                   title="Previous page" data-toggle="tooltip">
+                    <span class="fas fa-angle-double-left"></span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link"
+                   title="Current page" data-toggle="tooltip">
+                    <span>{{pageNumber}}</span>
+                </a>
+            </li>
+            <li class="page-item {{#if forwardDisabled}}disabled{{/if}}">
+                <a class="page-link" href="{{forwardUrl}}"
+                   title="Next page" data-toggle="tooltip">
+                    <span class="fas fa-angle-double-right"></span>
+                </a>
+            </li>
+        </ul>
+    </script>
+
+    <!--Navbar buttons template-->
+    <script id="navbar-buttons-template" type="text/x-handlebars-template">
+        {{#if username}}
+        <a onclick="logout()" class="btn text-white p-0">
+            <i class="far fa-share-square fa-lg"></i>
+            <br>
+            <p style="font-size:14px">{{username}}</p>
+        </a>
+        {{else}}
+        <a data-toggle="modal" data-target="#modal-login" class="btn text-white p-0">
+            <i class="far fa-user fa-lg"></i>
+            <br>
+            <p style="font-size:14px">Login</p>
+        </a>
+        {{/if}}
+    </script>
+
+    <!--Timer factory-->
+    <script>
+        function insertTimer(timerElement, timerWrapperElement) {
+
+            let eventTime, currentTime, duration;
+
+            eventTime = moment(timerElement.textContent);
+            currentTime = moment(getServerTime());
+            duration = moment.duration(eventTime.diff(currentTime));
+
+            function myTimer() {
+                duration = moment.duration(duration - 1000, 'milliseconds');
+                if (duration.asSeconds() <= 0) {
+                    clearInterval();
+                    timerWrapperElement.classList.add("bg-my-medium", "text-my-medium");
+                    timerWrapperElement.classList.remove("bg-danger");
+                    timerWrapperElement.classList.remove("text-white");
+                    timerElement.innerText = "Time is over.";
+                } else if (duration.asSeconds() <= 60) {
+                    timerElement.innerText = duration.seconds() + " sec.";
+                    timerWrapperElement.classList.add("bg-danger");
+                    timerWrapperElement.classList.add("text-white");
+                } else if (duration.asSeconds() <= 3600) {
+                    timerElement.innerText = duration.minutes() + " min. " + duration.seconds() + " sec.";
+                    timerWrapperElement.classList.add("bg-danger");
+                    timerWrapperElement.classList.add("text-white");
+                } else if (duration.asSeconds() <= 86400) {
+                    timerElement.innerText = duration.hours() + " h. " + duration.minutes() + " min. ";
+                } else if (duration.asSeconds() <= 2592000) {
+                    timerElement.innerText = duration.days() + " d. " + duration.hours() + " h. ";
+                } else {
+                    timerElement.innerText = duration.months() + " m. " + duration.days() + " d. " + duration.hours() + " h. ";
+                }
+
+            }
+
+            myTimer();
+            setInterval(myTimer, 1000);
+        }
+    </script>
+
+</head>
+
+<body class="bg-my-light">
+
+<!--Navbar-->
+<nav class="navbar navbar-expand-lg navbar-dark banner-concrete navbar-fixed-top">
+    <div class="container text-center">
+
+        <div class="navbar-header">
+            <a class="navbar-brand mr-1" href="/auction_client/html/index.html">ToadsMyToads</a>
+            <a class="navbar-brand" style="cursor:pointer">
+                <i style="display:inline-block" class="rotate fas fa-frog fa-lg"></i>
+                <div style="display:inline-block" class="rotate-left"><i
+                        class="fa-flip-horizontal fas fa-frog fa-lg"></i></div>
+            </a>
+        </div>
+        <div class="btn-group" id="navbar-buttons"></div>
+    </div>
+</nav>
+
+<!--Jumbotron-->
+<div class="jumbotron banner-wood md-hidden mb-3">
+    <div class="container">
+        <h1 style="font-size:50px" class="display-4">Welcome!</h1>
+        <p class="lead">ToadsMyToads is an online auction.</p>
+    </div>
+</div>
+
+<!--Lot cards-->
+<div class="container content">
+    <div class="row" id="lots"></div>
+</div>
+
+<!--Pagination-->
+<nav id="pagination"></nav>
+
+<div data-include="footer"></div>
+
+<div data-include="modal_login"></div>
+
+<!--Bottom JS-->
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+        integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+        crossorigin="anonymous"></script>
+</body>
+</html>

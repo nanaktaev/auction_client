@@ -1,0 +1,45 @@
+<!--Modal login error-->
+<div class="modal fade" id="modal-login-error" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-white">
+                <p class="modal-title" style="font-size:20px">Oops!</p>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                Invalid credentials.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Modal login-->
+<div class="modal fade" id="modal-login" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-white">
+                <p class="modal-title" style="font-size:20px">Login</p>
+                <button id="close-modal-login" type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <label>Username
+                    <input type="text" id="username" class="form-control"
+                           style="margin-bottom:10px; width:267px;"/>
+                </label>
+                <br>
+                <label>Password
+                    <input type="password" id="password" class="form-control"
+                           style="margin-bottom:10px; width:267px;"/>
+                </label>
+                <br>
+                <button class="btn border text-my-dark my-button"
+                        style="width:267px;" onclick="login()">Go
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

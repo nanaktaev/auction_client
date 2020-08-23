@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="ru" xmlns="http://www.w3.org/1999/html">
+<head>
+    <!--Meta-->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>ToadsMyToads</title>
+
+    <!--Stylesheets-->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css"
+          integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table.min.css">
+    <link rel="stylesheet" href="../assets/css/custom.css">
+
+    <!--Assets-->
+    <link rel="shortcut icon" href="../assets/images/frog.ico"/>
+
+    <!--JS-->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+    <script type="text/javascript" src="https://momentjs.com/downloads/moment-with-locales.js"></script>
+    <script type="text/javascript"
+            src="//cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+    <script type="text/javascript" src="../assets/js/rotate_logo.js"></script>
+    <script type="text/javascript" src="../assets/js/include_fragments.js"></script>
+    <script type="text/javascript" src="../assets/js/get_server_time.js"></script>
+    <script type="text/javascript" src="../assets/js/get_credentials_from_cookies.js"></script>
+    <script type="text/javascript" src="../assets/js/activate_tooltips.js"></script>
+
+    <!--Prepare url strings for ajax-->
+    <script>
+        lotUrl = "http://localhost:8080/lots/";
+        bidsUrl = "http://localhost:8080/bids?lotId=";
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+
+        if (urlParams.has("id")) {
+            id = urlParams.get("id");
+            lotUrl = lotUrl + id;
+            bidsUrl = bidsUrl + id;
+        }
+    </script>
+
+    <!--GET current user-->
+    <script>
+        function getCurrentUser(username, password) {
+            jQuery.ajax({
+                type: "GET",
+                url: "http://localhost:8080/users/current",
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Authorization", "Basic " + btoa(username + ":" + password));
+                },
+                success: function () {
+                    $('#close-modal-login').click();
+                    document.cookie = "username=" + username;
+                    document.cookie = "password=" + password;
+                    getLot(lotUrl);
+                },
+                error: function () {
+                    $('#close-modal-login').click();
+                    $('#modal-login-error').modal('toggle');
+                }
+            });
+        }
+    </script>
+
+    <!--Login-->
+    <script>
+        function login() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            getCurrentUser(username, password)
+        }
+    </script>
+
+    <!--Logout-->
+    <script>
+        function logout() {
+            $.removeCookie("username");
+            $.removeCookie("password");
+            getLot(lotUrl);
+        }
+    </script>
+
+    <!--GET lot & call GET Bids on success-->
+    <script>
+        getLot(lotUrl);
+
+        function getLot() {
+            jQuery.ajax({
+                type: "GET",
+                url: lotUrl,
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (lotData) {
+                    getBids(lotData);
+                },
+                error: function (jqXHR) {
+                    console.log(jqXHR);
+                }
+            });
+        }
+    </script>
+
+    <!--GET bids & build lot card on success-->
+    <script>
+        function getBids(lotData) {
+            jQuery.ajax({
+                type: "GET",
+                url: bidsUrl,
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    bidsData = data;
+                    numberOfDistinctBidders = countDistinctBidders(data);
+                },
+                error: function (jqXHR) {
+                    console.log(jqXHR);
+                    bidsData = [];
+                    numberOfDistinctBidders = 0;
+                },
+                complete: function () {
+
+                    timerElement = undefined;
+                    timerWrapperElement = undefined;
+                    dateSourceElement = undefined;
+                    closingDateElement = undefined;
+
+                    const lotBidsData = {
+                        lotData: lotData,
+                        bidsData: bidsData,
+                        numberOfDistinctBidders: numberOfDistinctBidders
+                    };
+
+                    let source = $("#lot-template").html();
+                    let template = Handlebars.compile(source);
+                    let html = template(lotBidsData);
+                    $('#lot').html(html);
+
+                    source = $("#lot-modal-template").html();
+                    template = Handlebars.compile(source);
+                    html = template(lotBidsData);
+                    $('#modal-image').html(html);
+
+                    source = $("#navbar-buttons-template").html();
+                    template = Handlebars.compile(source);
+                    html = template(getCredentialsFromCookies());
+                    $('#navbar-buttons').html(html);
+
+                    myTimer();
+                    setInterval(myTimer, 1000);
+                    formatClosingDate();
+                    formatBidsTime();
+                    activateTooltips();
+                }
+            });
+        }
+    </script>
+
+    <!--POST bid-->
+    <script>
+        function postBid() {
+
+            const value = $("#bid-value").val();
+            const credentials = getCredentialsFromCookies();
+
+            jQuery.ajax({
+                type: "POST",
+                url: "http://localhost:8080/bids/",
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Authorization", "Basic " + btoa(credentials.username + ":" + credentials.password));
+                },
+                data:
+                    JSON.stringify(
+                        {
+                            lot: {
+                                id: id
+                            },
+                            value: value
+                        }),
+                success: function () {
+                    getLot(lotUrl);
+                    const audio = new Audio('../assets/audio/frog.mp3');
+                    audio.play();
+                },
+                error: function (xhr) {
+                    getLot(lotUrl);
+                    const error = JSON.parse(xhr.responseText);
+                    $('#modal-business-error-text').text(error.message);
+                    $('#modal-business-error').modal('toggle');
+                }
+            });
+        }
+    </script>
+
+    <!--Count bidders-->
+    <script>
+        function countDistinctBidders(bids) {
+            return [...new Set(bids.map(bid => bid.user.username))].length;
+        }
+    </script>
+
+    <!--Format bids time-->
+    <script>
+        function formatBidsTime() {
+
+            const bidElements = document.getElementsByClassName("bid-timer");
+
+            for (let i = 0; i < bidElements.length; i++) {
+                bidElements[i].innerText = moment(bidElements[i].textContent).format("DD.MM [at] H:mm:ss");
+            }
+        }
+    </script>
+
+    <!--Handlebars helpers-->
+    <script>
+        Handlebars.registerHelper("sum", function (a, operator, b) {
+            a = parseFloat(a);
+            b = parseFloat(b);
+
+            return {
+                "+": a + b,
+            }[operator];
+        });
+    </script>
+
+    <!--Lot card template-->
+    <script id="lot-template" type="text/x-handlebars-template">
+        <div class="card-header">
+            <h6 class="pt-2 mb-1 text-my-dark font-weight-bold float-left">{{lotData.company.name}}</h6>
+            <i class="pt-2 mb-1 text-my-dark far fa-eye float-right pl-1" style="margin-top:0.2rem"></i>
+            <h6 id="socket-set-viewed"
+                class="pt-2 mb-1 text-my-dark font-weight-bold float-right">{{lotData.views}}</h6>
+            <div class="clearfix"></div>
+            <h3>{{lotData.title}}</h3>
+        </div>
+        <img class="card-img-top" data-toggle="modal" data-target="#modal-image"
+             style="border-radius: 0; object-fit:cover; height:25rem;"
+             src="{{lotData.image}}"
+             onerror="if (this.src !== '../assets/images/cover.jpg') this.src = '../assets/images/cover.jpg';">
+        <div class="card-body p-0 m-0">
+            <div class="row m-0">
+                <div class="col-xl-3 col-lg-4 col-md-6 p-0">
+                    <div class="pl-3 pr-3 border-bottom timer-wrapper" style="height:4.5rem; padding-top:0.75rem;">
+                        <h6 class="mb-1">Time remaining</h6>
+                        <h5 class="timer"></h5>
+                        <h5 id="socket-set-closesAt" class="date-source"
+                            style="display:none">{{lotData.closes}}</h5>
+                    </div>
+                    <div class="pl-3 pr-3" style="height:4.75rem; padding-top:0.75rem;">
+                        <h6 class="mb-1">Current price</h6>
+                        <h4 id="socket-set-price" class="font-weight-bold">{{lotData.price}} BYN</h4>
+                    </div>
+                    <div class="pl-3 pr-3 pt-0 pb-3">
+                        <h6 class="mb-1">Bidding ends</h6>
+                        <p class="closing-date" data-toggle="tooltip" title="Or 3 minutes after the last bid!">
+                            {{lotData.closes}}</p>
+                    </div>
+                    <div class="pl-3 pr-3 pt-0 pb-3">
+                        <h6 id="bid-invitation" class="mb-2">Make a bid</h6>
+                        <div class="input-group">
+                            <form id="bid-form" onsubmit="return false">
+                                <input id="bid-value" style="width:194px" class="form-control" required
+                                       type="number"
+                                       step="0.5"
+                                       min='{{sum lotData.price "+" lotData.step}}' name="value"
+                                       value='{{sum lotData.price "+" lotData.step}}'>
+                                <button id="fake-submit" class="d-none"></button>
+                            </form>
+                            <button id="bid-button" class="btn text-my-dark" onclick="validateBidValue()"
+                                    style="padding-top:0.05rem;"><i
+                                    class="fas fa-comment-dollar fa-2x"></i>
+                            </button>
+                        </div>
+                        <p class="mt-1">Minimal rise is {{lotData.step}} BYN</p>
+                        <p id="lot-step" class="d-none">{{lotData.step}}</p>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-lg-4 col-md-6 p-2">
+                    <div class="border">
+                        <div class="pl-3 pr-3 clearfix" style="padding-top:0.75rem;">
+                            <h6 id="socket-set-numberOfBids" style="margin-bottom:0.75rem;" class="float-left">
+                                Bids {{bidsData.length}}</h6>
+                            <h6 id="socket-set-bidders" style="margin-bottom:0.75rem;" class="float-right mb-0">
+                                Bidders {{numberOfDistinctBidders}}</h6>
+                        </div>
+                        <div id="table-wrapper" style="height:16rem; overflow:auto;">
+                            <table class="table-sm table-borderless border-0"
+                                   style="font-size:11px; width:100%">
+                                <tbody>
+                                {{#each bidsData}}
+                                <tr>
+                                    <td>{{value}}</td>
+                                    <td class="bid-timer">{{time}}</td>
+                                    <td>{{user.username}}</td>
+                                </tr>
+                                {{else}}
+                                <tr>
+                                    <td class="text-center">There are no bids on this lot yet.</td>
+                                </tr>
+                                {{/each}}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-6 col-lg-4 pb-2" style="padding-top:0.75rem;">
+                    <h6>Description</h6>
+                    <p class="text-justify">{{lotData.description}}</p>
+                </div>
+            </div>
+        </div>
+    </script>
+
+    <!--Lot modal template-->
+    <script id="lot-modal-template" type="text/x-handlebars-template">
+        <div class="modal-dialog modal-dialog-centered " style="max-width:650px">
+            <div class="modal-content border-0">
+                <img data-toggle="modal" data-target="#modal-image"
+                     style="border-radius: 0.25rem; object-fit:cover;"
+                     src="{{lotData.image}}"
+                     onerror="if (this.src !== '../assets/images/cover.jpg') this.src = '../assets/images/cover.jpg';"
+                     class="card-img">
+            </div>
+        </div>
+    </script>
+
+    <!--Navbar buttons template-->
+    <script id="navbar-buttons-template" type="text/x-handlebars-template">
+        {{#if username}}
+        <a onclick="logout()" class="btn text-white p-0">
+            <i class="far fa-share-square fa-lg"></i>
+            <br>
+            <p style="font-size:14px">{{username}}</p>
+        </a>
+        {{else}}
+        <a data-toggle="modal" data-target="#modal-login" class="btn text-white p-0">
+            <i class="far fa-user fa-lg"></i>
+            <br>
+            <p style="font-size:14px">Login</p>
+        </a>
+        {{/if}}
+    </script>
+
+    <!--Lot countdown-->
+    <script>
+        let timerElement;
+        let timerWrapperElement;
+        let dateSourceElement;
+        let closingDateElement;
+
+        function myTimer() {
+
+            if (!timerElement) {
+                timerElement = document.getElementsByClassName("timer")[0];
+            }
+            if (!dateSourceElement) {
+                dateSourceElement = document.getElementsByClassName("date-source")[0];
+            }
+            if (!timerWrapperElement) {
+                timerWrapperElement = document.getElementsByClassName("timer-wrapper")[0];
+            }
+
+            const eventTime = moment(dateSourceElement.textContent);
+            const currentTime = moment(getServerTime());
+            const duration = moment.duration(eventTime.diff(currentTime));
+            if (duration.asSeconds() <= 0) {
+                clearInterval();
+                timerWrapperElement.classList.add("bg-my-medium", "text-my-medium");
+                timerWrapperElement.classList.remove("bg-danger");
+                timerWrapperElement.classList.remove("text-white");
+                timerWrapperElement.classList.remove("border-bottom");
+                timerElement.innerText = "Time is over.";
+            } else if (duration.asSeconds() <= 60) {
+                timerElement.innerText = duration.seconds() + " sec.";
+                timerWrapperElement.classList.add("bg-danger");
+                timerWrapperElement.classList.add("text-white");
+                timerWrapperElement.classList.remove("border-bottom");
+            } else if (duration.asSeconds() <= 3600) {
+                timerElement.innerText = duration.minutes() + " min. " + duration.seconds() + " sec.";
+                timerWrapperElement.classList.add("bg-danger");
+                timerWrapperElement.classList.add("text-white");
+                timerWrapperElement.classList.remove("border-bottom");
+            } else if (duration.asSeconds() <= 86400) {
+                timerElement.innerText = duration.hours() + " h. " + duration.minutes() + " min. ";
+            } else if (duration.asSeconds() <= 2592000) {
+                timerElement.innerText = duration.days() + " d. " + duration.hours() + " h. ";
+            } else {
+                timerElement.innerText = duration.months() + " m. " + duration.days() + " d. " + duration.hours() + " h. ";
+            }
+        }
+
+        function formatClosingDate() {
+
+            if (!closingDateElement) {
+                closingDateElement = document.getElementsByClassName("closing-date")[0];
+            }
+            if (!dateSourceElement) {
+                dateSourceElement = document.getElementsByClassName("date-source")[0];
+            }
+
+            closingDateElement.innerText = moment(dateSourceElement.textContent).format("D MMM YYYY, dddd H:mm");
+        }
+    </script>
+
+</head>
+
+<body class="bg-my-light">
+
+<!--Navbar-->
+<nav class="navbar navbar-expand-lg navbar-dark banner-concrete navbar-fixed-top">
+    <div class="container text-center">
+        <div class="navbar-header">
+            <a class="navbar-brand mr-1" href="/auction_client/html/index.html">ToadsMyToads</a>
+            <a class="navbar-brand" style="cursor:pointer">
+                <i style="display:inline-block" class="rotate fas fa-frog fa-lg"></i>
+                <div style="display:inline-block" class="rotate-left"><i
+                        class="fa-flip-horizontal fas fa-frog fa-lg"></i></div>
+            </a>
+        </div>
+        <div class="btn-group" id="navbar-buttons"></div>
+    </div>
+</nav>
+
+<!--Lot card-->
+<div class="container content p-0">
+    <div id="lot" class="card mt-2 mb-2" style="margin-bottom:15px"></div>
+</div>
+
+<div data-include="footer"></div>
+
+<!--Modal image-->
+<div class="modal fade" id="modal-image" tabindex="-1" role="dialog"></div>
+
+<div data-include="modal_login"></div>
+
+<!--Modal business error-->
+<div class="modal fade" id="modal-business-error" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-white">
+                <p class="modal-title" style="font-size:20px">Oops!</p>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div id="modal-business-error-text" class="modal-body text-center"></div>
+        </div>
+    </div>
+</div>
+
+<!--HTML5 validation-->
+<script>
+    function validateBidValue() {
+        const bidForm = $("#bid-form");
+        $('#fake-submit').click();
+        if (bidForm[0].checkValidity()) postBid();
+    }
+</script>
+
+<!--Bottom JS-->
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+        integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+        crossorigin="anonymous"></script>
+<script src="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table.min.js"></script>
+<script src="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table-locale-all.min.js"></script>
+
+</body>
+</html>

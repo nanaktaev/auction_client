@@ -1,0 +1,167 @@
+.banner-concrete {
+    background-image: url("../images/concrete.jpg");
+}
+
+.banner-wood {
+    background-image: url("../images/wood.jpg");
+}
+
+p {
+    margin: 0;
+    padding: 0;
+}
+
+.navbar-toggler {
+    font-size: 16px;
+    border-style: none;
+}
+
+.rotate {
+    transition: 0.9s;
+}
+
+.rotate-left {
+    transition: 0.9s;
+}
+
+.text-my-medium {
+    color: #bab7b4;
+}
+
+.text-my-dark {
+    color: #9C9995;
+}
+
+.bg-my-success {
+    background-color: #98AF68;
+}
+
+.bg-my-semi-success {
+    background-color: #719D70;
+}
+
+.bg-my-light {
+    background-color: #E7E4DF;
+}
+
+.bg-my-medium {
+    background-color: #D9D5CE;
+}
+
+.bg-my-dark {
+    background-color: #9C9995;
+}
+
+.my-hover:hover {
+    color: black;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+.content {
+    flex-grow: 1;
+}
+
+tr {
+    border-bottom: 1px solid #DEE2E6;
+    border-top: 1px solid #DEE2E6;
+    border-collapse: collapse;
+}
+
+input[type="number"]:disabled {
+    background: #f6f5f1;
+    border: none;
+}
+
+button:disabled {
+    cursor: context-menu;
+    color: #E7E4DF;
+}
+
+button[disabled]:hover {
+    color: #E7E4DF;
+}
+
+.hide-me {
+    -webkit-animation: cssAnimation 3s forwards;
+    animation: cssAnimation 3s forwards;
+}
+
+.pagination > li > a {
+    background-color: white;
+    color: #6c757d;
+}
+
+.pagination > li > a:focus,
+.pagination > li > a:hover,
+.pagination > li > span:focus,
+.pagination > li > span:hover {
+    color: white;
+    background-color: #bab7b4;
+    border-color: #bab7b4;
+}
+
+.pagination > .active > a {
+    color: #6c757d;
+    background-color: #D9D5CE !Important;
+    border: solid 1px #D9D5CE !Important;
+}
+
+.pagination > .active > a:hover {
+    background-color: #D9D5CE !Important;
+    border: solid 1px #D9D5CE;
+}
+
+
+ul > li.page-item.disabled > a {
+    color: #D9D5CE !important;
+}
+
+
+@keyframes cssAnimation {
+    0% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@-webkit-keyframes cssAnimation {
+    0% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+.animate-bottom {
+    position: relative;
+    animation: animatebottom 0.4s;
+}
+
+@keyframes animatebottom {
+    from {
+        bottom: -300px;
+        opacity: 0;
+    }
+
+    to {
+        bottom: 0;
+        opacity: 1;
+    }
+}
